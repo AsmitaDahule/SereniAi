@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S. AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/public/styles.css">
+</head>
+<body class="flex h-screen">
+    <!-- Sidebar for Chat History -->
+    <div class="w-1/3 p-4 bg-gray-900 text-white overflow-y-auto">
+        <h2 class="text-xl font-bold mb-4">Chat History</h2>
+        <ul id="chatHistory" class="space-y-2"></ul>
+    </div>
+
+    <!-- Main Chat Section -->
+    <div class="flex-1 flex items-center justify-center">
+        <div class="text-center p-8 rounded-3xl glassmorphism w-96">
+            <h1 class="text-4xl font-bold neon-text mb-4">SereniAI</h1>
+
+            <button id="startRecognition"
+                class="bg-transparent neon-btn border-2 border-cyan-400 text-cyan-400 font-bold py-2 px-6 rounded-lg transition duration-300">
+                🎙 Activate Listening
+            </button>
+
+            <p id="textData" class="mt-4 text-cyan-300 text-lg font-semibold opacity-80">
+                Awaiting Command...
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const start = document.getElementById("startRecognition");
+        const textData = document.getElementById("textData");
+        const chatHistory = document.getElementById("chatHistory");
+
+        // Function to fetch chat history
+        async function fetchChatHistory() {
+            try {
+                const res = await fetch("/jarvis/chatHistory");
+                const data = await res.json();
+                chatHistory.innerHTML = "";  // Clear previous history
+
+                data.forEach(({ text, response }) => {
+                    const item = document.createElement("li");
+                    item.classList.add("p-2", "border-b", "border-gray-600");
+                    item.innerHTML = `<strong>🗣 ${text}</strong><br>🤖 ${response}`;
+                    chatHistory.appendChild(item);
+                });
+            } catch (error) {
+                console.error("Error fetching chat history:", error);
+            }
+        }
+
+        start.addEventListener("click", async () => {
+            const recognition = new webkitSpeechRecognition();
+            recognition.onresult = async ({ results }) => {
+                const recognizedText = results[0][0].transcript;
+                textData.textContent = "🗣 " + recognizedText;
+
+                try {
+                    const res = await fetch("/jarvis/virtualAssistant", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ text: recognizedText })
+                    });
+                    const data = await res.json();
+                    textData.textContent = "🤖 " + data.message;
+
+                    fetchChatHistory(); // Refresh chat history after new message
+                } catch (error) {
+                    textData.textContent = "⚠️ Error";
+                }
+            };
+
+            recognition.start();
+        });
+
+        // Load chat history on page load
+        fetchChatHistory();
+    </script>
+</body>
+</html>
